@@ -1,0 +1,106 @@
+
+# This code is about Adjusted cosine similarity
+
+import itertools
+
+data_list = []  # The list contains all data
+music_corpus = []  # The corpus for all presented song-pairs, form is [['a', 'b'], ['a', 'c']]
+
+a = open("/Users/gordonli/PycharmProjects/music/Item-Based/Training Results/train.txt", "r")
+for track in a:
+    music_corpus = music_corpus + [track.strip().split('\t')[1]]
+music_corpus = list(dict.fromkeys(music_corpus))
+a.close()
+
+
+def item_based_filtering():
+    global tem_average_score, r_uj, r_ui, numerator, i_denominator, j_denominator, similarity
+    for track_combination in itertools.combinations(music_corpus, 2):
+        track_combination = list(track_combination)
+
+        user_candidate = []  # The users within both two songs combination (we use the threshold 5)
+        numerator = 0  # For Adjusted Cosine Similarity numerator plus iteration.
+        i_denominator = 0  # For Adjusted Cosine Similarity denominator item i plus iteration.
+        j_denominator = 0  # For Adjusted Cosine Similarity denominator item j plus iteration.
+        similarity = 0  # For music combination similarity
+
+        b = open("/Users/gordonli/PycharmProjects/music/Item-Based/Training Results/user_track_mapping.txt", "r")
+        for track_line in b:
+            if track_combination[0] in track_line.strip().split(" ") and track_combination[1] in track_line.strip().split(" "):
+                user_candidate = user_candidate + [track_line.strip().split(" ")[0]]
+            else:
+                user_candidate = user_candidate
+        b.close()
+
+        if len(user_candidate) >= 5:
+        #  Due to Adjusted cosine characteristic, the co-occurrence in one user should over the threshold 5
+            for c in range(len(user_candidate)):
+                tem_average_score = 0  # For each particular user's average rating score
+                r_ui = 0  # r_ui denotes the rating of user u on item i
+                r_uj = 0  # r_ui denotes the rating of user u on item j
+
+                def temporary_average_score():
+                    global tem_average_score
+                    d = open("/Users/gordonli/PycharmProjects/music/Item-Based/Training Results/average_score.txt", "r")
+                    for as_line in d:
+                        if as_line.strip().split(" ")[0] == user_candidate[c]:
+                            tem_average_score = float(as_line.strip().split(" ")[1])
+                    d.close()
+                    return tem_average_score
+
+                temporary_average_score()
+
+                def rating_score_search():
+                    global r_ui, r_uj
+                    e = open("/Users/gordonli/PycharmProjects/music/Item-Based/Training Results/train.txt", "r")
+                    for dl_line in e:
+                        if user_candidate[c] == dl_line.strip().split("\t")[0] and track_combination[0] == dl_line.strip().split("\t")[1]:
+                            r_ui = float(dl_line.strip().split("\t")[2])
+                        if user_candidate[c] == dl_line.strip().split("\t")[0] and track_combination[1] == dl_line.strip().split("\t")[1]:
+                            r_uj = float(dl_line.strip().split("\t")[2])
+                    e.close()
+                    return r_uj, r_ui
+
+                rating_score_search()
+
+                def numerator_computation():
+                    global numerator
+                    numerator = numerator + (r_uj - tem_average_score) * (r_ui - tem_average_score)
+                    return numerator
+
+                numerator_computation()
+
+                def denominator_computation():
+                    global i_denominator, j_denominator
+                    i_denominator = i_denominator + ((r_ui - tem_average_score) ** 2)
+                    j_denominator = j_denominator + ((r_uj - tem_average_score) ** 2)
+                    return i_denominator, j_denominator
+
+                denominator_computation()
+
+            def similarity_computation():
+                global similarity
+                if i_denominator != 0 and j_denominator != 0:
+                    similarity = numerator / ((i_denominator ** 0.5) * (j_denominator ** 0.5))
+                return similarity
+
+            similarity_computation()
+
+            def file_output():
+                f = open("/Users/gordonli/PycharmProjects/music/Item-Based/Training Results/item_based_results.txt",
+                         "a+")
+                f.write(track_combination[0])
+                f.write("|")
+                f.write(track_combination[1])
+                f.write("|")
+                f.write(str(similarity) + '\n')
+                f.close()
+
+            file_output()
+
+
+item_based_filtering()
+
+
+
+
